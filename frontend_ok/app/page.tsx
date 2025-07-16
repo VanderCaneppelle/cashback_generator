@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "../src/utils/supabaseClient";
 import { useEffect } from "react";
+import Debug from "./debug";
 
 export default function Home() {
   const [link, setLink] = useState("");
@@ -77,6 +78,7 @@ export default function Home() {
     try {
       // Chama o backend para gerar o link de afiliado e buscar dados reais
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+      console.log('Backend URL:', backendUrl);
       const resp = await fetch(`${backendUrl}/api/affiliate-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -105,7 +107,8 @@ export default function Home() {
         setProduto(null);
       }
     } catch (err) {
-      setErro("Erro ao conectar com o backend.");
+      console.error('Erro ao conectar com o backend:', err);
+      setErro(`Erro ao conectar com o backend: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
       setProduto(null);
     } finally {
       setLoading(false);
@@ -303,7 +306,7 @@ export default function Home() {
             <div className="text-lg font-semibold text-center text-gray-900">{produto.nome}</div>
             <div className="flex flex-col gap-1 text-sm w-full text-gray-700">
               <div><span className="font-medium">Preço estimado:</span> R$ {produto.preco.toFixed(2)}</div>
-              <div><span className="font-medium text-green-600">Cashback aproximado:</span> <span className="font-bold">R$ {cashback.toFixed(2)}</span></div>
+              <div><span className="font-medium text-green-600">Cashback aproximado testes:</span> <span className="font-bold">R$ {cashback.toFixed(2)}</span></div>
             </div>
             {linkAfiliado && (
               <a
@@ -319,6 +322,7 @@ export default function Home() {
         )}
       </div>
       <footer className="mt-8 text-xs text-gray-400">Seu cashback é calculado automaticamente. Powered by Cashback Generator.</footer>
+      <Debug />
     </div>
   );
 }

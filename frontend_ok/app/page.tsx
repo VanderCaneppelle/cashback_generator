@@ -303,8 +303,7 @@ export default function Home() {
             <div className="text-lg font-semibold text-center text-gray-900">{produto.nome}</div>
             <div className="flex flex-col gap-1 text-sm w-full text-gray-700">
               <div><span className="font-medium">Preço estimado:</span> R$ {produto.preco.toFixed(2)}</div>
-              <div><span className="font-medium">Comissão estimada:</span> R$ {comissao.toFixed(2)}</div>
-              <div><span className="font-medium text-green-600">Cashback esperado:</span> <span className="font-bold">R$ {cashback.toFixed(2)}</span></div>
+              <div><span className="font-medium text-green-600">Cashback aproximado:</span> <span className="font-bold">R$ {cashback.toFixed(2)}</span></div>
             </div>
             {linkAfiliado && (
               <a

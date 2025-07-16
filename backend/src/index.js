@@ -10,6 +10,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Healthcheck route
+app.get('/', (req, res) => {
+    res.json({ status: 'OK', message: 'Backend Cashback Generator está funcionando!' });
+});
+
 // Rota para gerar link de afiliado
 app.post('/api/affiliate-link', async (req, res) => {
     const { productUrl } = req.body;
@@ -24,8 +29,6 @@ app.post('/api/affiliate-link', async (req, res) => {
         console.log('Abrindo navegador com perfil já logado...');
         browser = await require('puppeteer').launch({
             headless: 'new',
-            userDataDir: __dirname + '/../chrome_profile',
-            executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -34,7 +37,6 @@ app.post('/api/affiliate-link', async (req, res) => {
                 '--no-zygote',
                 '--disable-gpu',
                 '--window-size=1280,900',
-                '--start-maximized',
                 '--disable-blink-features=AutomationControlled'
             ]
         });

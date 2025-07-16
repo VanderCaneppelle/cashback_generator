@@ -76,7 +76,8 @@ export default function Home() {
     setLoading(true);
     try {
       // Chama o backend para gerar o link de afiliado e buscar dados reais
-      const resp = await fetch("http://localhost:4000/api/affiliate-link", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+      const resp = await fetch(`${backendUrl}/api/affiliate-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productUrl: link })
@@ -86,7 +87,7 @@ export default function Home() {
         setLinkAfiliado(data.affiliateLink);
         setProduto({ nome: data.nome, preco: Number(data.preco), imagem: data.imagem });
         // Salva o link gerado no banco
-        await fetch("http://localhost:4000/api/salvar-link", {
+        await fetch(`${backendUrl}/api/salvar-link`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -114,7 +115,8 @@ export default function Home() {
   async function buscarMeusLinks() {
     setLinksLoading(true);
     setShowLinks(true);
-    const resp = await fetch(`http://localhost:4000/api/links?user_id=${user.id}`);
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+    const resp = await fetch(`${backendUrl}/api/links?user_id=${user.id}`);
     const { data } = await resp.json();
     setMeusLinks(data || []);
     setLinksLoading(false);

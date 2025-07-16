@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const puppeteer = require('puppeteer');
 require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const app = express();
 app.use(cors());
@@ -138,6 +141,32 @@ app.get('/login-manual', async (req, res) => {
     res.send('Navegador aberto na página do Mercado Livre. Faça login, acesse o painel de afiliados e feche o navegador ao terminar.');
     await new Promise(resolve => browser.on('disconnected', resolve));
     console.log('Navegador fechado pelo usuário. Login manual concluído.');
+});
+
+app.post('/api/salvar-link', async (req, res) => {
+    const { user_id, codigo_produto, link_gerado, preco, valor_cashback, status, nome_produto } = req.body;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data, error } = await supabase.from('links_cashback').insert([
+        { user_id, codigo_produto, link_gerado, preco, valor_cashback, status, nome_produto }
+    ]);
+    console.log(req.body)
+    if (error) {
+        console.log('Erro ao inserir no Supabase:', error);
+        return res.status(500).json({ error: error.message });
+    }
+    res.json({ success: true, data });
+});
+
+app.get('/api/links', async (req, res) => {
+    const { user_id } = req.query;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data, error } = await supabase
+        .from('links_cashback')
+        .select('*')
+        .eq('user_id', user_id)
+        .order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ data });
 });
 
 const PORT = process.env.PORT || 4000;

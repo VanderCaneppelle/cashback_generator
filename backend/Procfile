@@ -1,1 +1,1 @@
-web: npm start 
+web: unzip -o chrome_profile.zip -d chrome_profile && npm start

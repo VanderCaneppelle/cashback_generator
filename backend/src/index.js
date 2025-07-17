@@ -36,13 +36,13 @@ app.post('/api/affiliate-link', async (req, res) => {
                 '--disable-accelerated-2d-canvas',
                 '--no-zygote',
                 '--disable-gpu',
-                '--window-size=1280,900',
+                '--window-size=1920,1080',
                 '--disable-blink-features=AutomationControlled'
             ]
         });
 
         const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 900 });
+        await page.setViewport({ width: 1920, height: 1080 });
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
         await page.evaluateOnNewDocument(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
@@ -96,9 +96,32 @@ app.post('/api/affiliate-link', async (req, res) => {
             if (shareButtonFound) {
                 // Tentar pegar o link do input ou clipboard
                 try {
-                    await page.waitForSelector('[data-testid="copy-button__label_link"]', { timeout: 5000 });
-                    await page.click('[data-testid="copy-button__label_link"]');
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    const copyLinkSelectors = [
+                        '[data-testid="copy-button__label_link"]',
+                        'button[aria-label*="copiar"]',
+                        'button[aria-label*="link do produto"]',
+                        'button.copy-link',
+                        // Adicione outros seletores se necessário
+                    ];
+                    let copyButtonFound = false;
+                    for (const selector of copyLinkSelectors) {
+                        try {
+                            console.log(`Tentando seletor de copiar link: ${selector}`);
+                            await page.waitForSelector(selector, { timeout: 7000 });
+                            await page.waitForTimeout(1000);
+                            await page.screenshot({ path: `screenshot_copy_${selector.replace(/[^a-zA-Z0-9]/g, '_')}.png`, fullPage: true });
+                            await page.click(selector);
+                            console.log(`Botão de copiar link encontrado e clicado: ${selector}`);
+                            copyButtonFound = true;
+                            await page.waitForTimeout(1000);
+                            break;
+                        } catch (e) {
+                            console.log(`Seletor de copiar link ${selector} não encontrado`);
+                        }
+                    }
+                    if (!copyButtonFound) {
+                        throw new Error('Nenhum botão de copiar link encontrado!');
+                    }
 
                     affiliateLink = await page.evaluate(() => {
                         const input = document.querySelector('input[data-testid="share-link-input"]');

@@ -25,7 +25,7 @@ app.post('/api/affiliate-link', async (req, res) => {
     try {
         console.log('Abrindo navegador...');
         browser = await puppeteer.launch({
-            headless: false, // Para debug visual
+            headless: true, // Para debug visual
             userDataDir: __dirname + '/../chrome_profile',
             args: [
                 '--no-sandbox',

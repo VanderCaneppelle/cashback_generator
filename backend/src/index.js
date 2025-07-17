@@ -121,6 +121,8 @@ app.post('/api/affiliate-link', async (req, res) => {
                             break;
                         } catch (e) {
                             console.log(`Seletor de copiar link ${selector} não encontrado`);
+                            await page.screenshot({ path: `screenshot_after_share_10.png`, fullPage: true })
+                            console.log('Screenshot após clicar no botão de compartilhar E aguardar 10 segundos!')
                         }
                     }
                     if (!copyButtonFound) {

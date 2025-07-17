@@ -84,9 +84,13 @@ app.post('/api/affiliate-link', async (req, res) => {
                     console.log(`Tentando seletor: ${selector}`);
                     await page.waitForSelector(selector, { timeout: 8000 });
                     await page.click(selector);
-                    console.log(`Botão encontrado e clicado: ${selector}`);
+                    // await page.screenshot({ path: `screenshot_after_share.png`, fullPage: true });
+                    // console.log('Screenshot após clicar no botão de compartilhar tirada!');
+                    //await page.waitForTimeout(10000); // Aguarda 10 segundos
+                    // await page.screenshot({ path: `screenshot_after_share_10.png`, fullPage: true });
+                    // console.log('Screenshot após clicar no botão de compartilhar E aguardar 10 segundos!');
+                    // console.log(`Botão encontrado e clicado: ${selector}`);
                     shareButtonFound = true;
-                    await new Promise(resolve => setTimeout(resolve, 2000));
                     break;
                 } catch (e) {
                     console.log(`Seletor ${selector} não encontrado`);
@@ -98,18 +102,18 @@ app.post('/api/affiliate-link', async (req, res) => {
                 try {
                     const copyLinkSelectors = [
                         '[data-testid="copy-button__label_link"]',
-                        'button[aria-label*="copiar"]',
-                        'button[aria-label*="link do produto"]',
-                        'button.copy-link',
+                        // 'button[aria-label*="copiar"]',
+                        // 'button[aria-label*="Link do produto"]',
+                        // 'button.copy-link',
                         // Adicione outros seletores se necessário
                     ];
                     let copyButtonFound = false;
                     for (const selector of copyLinkSelectors) {
                         try {
                             console.log(`Tentando seletor de copiar link: ${selector}`);
-                            await page.waitForSelector(selector, { timeout: 7000 });
-                            await page.waitForTimeout(1000);
-                            await page.screenshot({ path: `screenshot_copy_${selector.replace(/[^a-zA-Z0-9]/g, '_')}.png`, fullPage: true });
+                            await page.waitForSelector(selector, { visible: true, timeout: 10000 });
+                            await page.screenshot({ path: `screenshot_after_share_10.png`, fullPage: true })
+                            console.log('Screenshot após clicar no botão de compartilhar E aguardar 10 segundos!')
                             await page.click(selector);
                             console.log(`Botão de copiar link encontrado e clicado: ${selector}`);
                             copyButtonFound = true;
@@ -198,6 +202,20 @@ app.post('/api/affiliate-link', async (req, res) => {
 // Rota para baixar screenshot
 app.get('/screenshot', (req, res) => {
     res.sendFile(path.resolve('screenshot.png'));
+});
+
+// Rota dinâmica para servir qualquer screenshot PNG
+app.get('/screenshot/:filename', (req, res) => {
+    const filename = req.params.filename;
+    // Permite apenas nomes de arquivos seguros e .png
+    if (!/^[a-zA-Z0-9._-]+\.png$/.test(filename)) {
+        return res.status(400).send('Nome de arquivo inválido');
+    }
+    res.sendFile(path.resolve(filename));
+});
+
+app.get('/screenshot/share10', (req, res) => {
+    res.sendFile(path.resolve('screenshot_after_share_10.png'));
 });
 
 app.post('/api/salvar-link', async (req, res) => {

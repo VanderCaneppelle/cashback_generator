@@ -6,6 +6,7 @@ const { createClient } = require('@supabase/supabase-js');
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const path = require('path');
+const cookies = require('../ml_cookies.json');
 
 const app = express();
 app.use(cors());
@@ -46,23 +47,16 @@ app.post('/api/affiliate-link', async (req, res) => {
         await page.evaluateOnNewDocument(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
         });
+        // Adiciona os cookies do Mercado Livre antes de acessar a página
+        await page.setCookie(...cookies);
+        console.log('Cookies do Mercado Livre injetados!');
 
         console.log('Acessando produto:', productUrl);
         await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
-        // Validação se está logado
-        const isLogged = await page.evaluate(() => {
-            return !!document.querySelector('a[data-testid="user-menu-my-account"]') ||
-                !!document.querySelector('img.nav-header-avatar') ||
-                !!document.querySelector('a[data-testid="user-menu-trigger"]');
-        });
-        console.log('Usuário está logado?', isLogged);
+        // Screenshot para debug
         await page.screenshot({ path: 'screenshot.png', fullPage: true });
         console.log('Screenshot tirada!');
-        if (!isLogged) {
-            await browser.close();
-            return res.status(401).json({ error: 'Usuário NÃO está logado no Mercado Livre! Atualize o perfil.', screenshot: '/screenshot' });
-        }
 
         // Espera adicional para garantir carregamento
         console.log('Aguardando carregamento da página...');

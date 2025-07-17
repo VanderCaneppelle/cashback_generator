@@ -66,87 +66,55 @@ app.post('/api/affiliate-link', async (req, res) => {
         console.log('Tentando obter link de afiliado...');
         let affiliateLink = null;
 
-        // Método 1: Tentar encontrar botão de compartilhar
         try {
-            console.log('Método1: Procurando botão de compartilhar...');
-            const shareButtonSelectors = [
-                '[data-testid="generate_link_button"]',
-                '[data-testid=share-button]',
-                'button[aria-label*="Compartilhar"]',
-                'button[aria-label*="share"]',
-                '.ui-pdp-share-button',
-                '.share-button'
-            ];
+            // 1. Espera e clica no botão de compartilhar
+            await page.waitForSelector('[data-testid="generate_link_button"]', { visible: true, timeout: 15000 });
+            await page.click('[data-testid="generate_link_button"]');
+            console.log('Clicou no botão de compartilhar');
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
-            let shareButtonFound = false;
-            for (const selector of shareButtonSelectors) {
+            // 2. Tenta clicar no botão de copiar link
+            let copyButtonFound = false;
+            try {
+                await page.waitForSelector('[data-testid="copy-button__label_link"]', { visible: true, timeout: 7000 });
+                await page.click('[data-testid="copy-button__label_link"]');
+                console.log('Clicou no botão de copiar link');
+                copyButtonFound = true;
+            } catch (e) {
+                console.log('Primeira tentativa: botão de copiar link não encontrado, tentando novamente...');
+                // 3. Tenta clicar novamente no botão de compartilhar e depois no de copiar
+                await page.click('[data-testid="generate_link_button"]');
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 try {
-                    console.log(`Tentando seletor: ${selector}`);
-                    await page.waitForSelector(selector, { timeout: 8000 });
-                    await page.click(selector);
-                    // await page.screenshot({ path: `screenshot_after_share.png`, fullPage: true });
-                    // console.log('Screenshot após clicar no botão de compartilhar tirada!');
-                    //await page.waitForTimeout(10000); // Aguarda 10 segundos
-                    // await page.screenshot({ path: `screenshot_after_share_10.png`, fullPage: true });
-                    // console.log('Screenshot após clicar no botão de compartilhar E aguardar 10 segundos!');
-                    // console.log(`Botão encontrado e clicado: ${selector}`);
-                    shareButtonFound = true;
-                    break;
-                } catch (e) {
-                    console.log(`Seletor ${selector} não encontrado`);
+                    await page.waitForSelector('[data-testid="copy-button__label_link"]', { visible: true, timeout: 7000 });
+                    await page.click('[data-testid="copy-button__label_link"]');
+                    console.log('Clicou no botão de copiar link na segunda tentativa');
+                    copyButtonFound = true;
+                } catch (e2) {
+                    console.log('Segunda tentativa: botão de copiar link não encontrado');
                 }
             }
 
-            if (shareButtonFound) {
-                // Tentar pegar o link do input ou clipboard
+            if (!copyButtonFound) {
+                throw new Error('Não foi possível encontrar o botão de copiar link após duas tentativas.');
+            }
+
+            // Tenta pegar o link do input (caso esteja visível)
+            affiliateLink = await page.evaluate(() => {
+                const input = document.querySelector('input[data-testid="share-link-input"]');
+                return input ? input.value : null;
+            });
+
+            // Se não achou, tentar pegar do clipboard
+            if (!affiliateLink) {
                 try {
-                    const copyLinkSelectors = [
-                        '[data-testid="copy-button__label_link"]',
-                        // 'button[aria-label*="copiar"]',
-                        // 'button[aria-label*="Link do produto"]',
-                        // 'button.copy-link',
-                        // Adicione outros seletores se necessário
-                    ];
-                    let copyButtonFound = false;
-                    for (const selector of copyLinkSelectors) {
-                        try {
-                            console.log(`Tentando seletor de copiar link: ${selector}`);
-                            await page.waitForSelector(selector, { visible: true, timeout: 20000 });
-                            await page.screenshot({ path: `screenshot_after_share_10.png`, fullPage: true })
-                            console.log('Screenshot após clicar no botão de compartilhar E aguardar 10 segundos!')
-                            await page.click(selector);
-                            console.log(`Botão de copiar link encontrado e clicado: ${selector}`);
-                            copyButtonFound = true;
-                            await page.waitForTimeout(1000);
-                            break;
-                        } catch (e) {
-                            console.log(`Seletor de copiar link ${selector} não encontrado`);
-                            await page.screenshot({ path: `screenshot_after_share_10.png`, fullPage: true })
-                            console.log('Screenshot após clicar no botão de compartilhar E aguardar 10 segundos!')
-                        }
-                    }
-                    if (!copyButtonFound) {
-                        throw new Error('Nenhum botão de copiar link encontrado!');
-                    }
-
-                    affiliateLink = await page.evaluate(() => {
-                        const input = document.querySelector('input[data-testid="share-link-input"]');
-                        return input ? input.value : null;
-                    });
-
-                    if (!affiliateLink) {
-                        try {
-                            affiliateLink = await page.evaluate(() => navigator.clipboard.readText());
-                        } catch (e) {
-                            console.log('Não foi possível acessar o clipboard:', e);
-                        }
-                    }
+                    affiliateLink = await page.evaluate(() => navigator.clipboard.readText());
                 } catch (e) {
-                    console.log('Erro ao tentar copiar link:', e.message);
+                    console.log('Não foi possível acessar o clipboard:', e);
                 }
             }
         } catch (e) {
-            console.log('Método 1 falhou:', e.message);
+            console.log('Erro ao tentar gerar/clicar nos botões:', e.message);
         }
 
         // Método 2: Gerar link baseado na URL do produto

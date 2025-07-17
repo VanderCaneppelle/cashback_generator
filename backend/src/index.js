@@ -121,7 +121,7 @@ app.post('/api/affiliate-link', async (req, res) => {
             const copySelectors = [
                 '[data-testid="copy-button__label_link"]',
                 '[data-testid="copy-button"]',
-                'button[aria-label*="copiar"]',
+                'button[aria-label*="Link do produto"]',
                 'button[aria-label*="copy"]',
                 '.copy-button',
                 '[data-testid*="copy"]',
@@ -130,11 +130,12 @@ app.post('/api/affiliate-link', async (req, res) => {
             ];
 
             for (const selector of copySelectors) {
-                try {
-                    console.log(`Tentando seletor para botão de copiar: ${selector}`);
-
-                    // Verifica se o popup ainda está aberto antes de tentar o seletor
-                    const popupAindaAberto = await page.evaluate(() => {
+                // Antes de cada seletor, garantir que o popup está aberto
+                let popupAindaAberto = false;
+                let tentativasPopup = 0;
+                while (!popupAindaAberto && tentativasPopup < 3) {
+                    tentativasPopup++;
+                    popupAindaAberto = await page.evaluate(() => {
                         const popupSelectors = [
                             '.link-generator',
                             '[role="dialog"]',
@@ -143,13 +144,18 @@ app.post('/api/affiliate-link', async (req, res) => {
                         ];
                         return popupSelectors.some(sel => document.querySelector(sel) !== null);
                     });
-
                     if (!popupAindaAberto) {
-                        console.log('Popup fechou, tentando abrir novamente...');
+                        console.log(`Popup fechado antes do seletor ${selector}, tentativa ${tentativasPopup} de reabrir...`);
                         await page.click('[data-testid="generate_link_button"]');
                         await new Promise(resolve => setTimeout(resolve, 2000));
                     }
-
+                }
+                if (!popupAindaAberto) {
+                    console.log(`Não foi possível abrir o popup para o seletor ${selector} após 3 tentativas. Abortando.`);
+                    break;
+                }
+                try {
+                    console.log(`Tentando seletor para botão de copiar: ${selector}`);
                     await page.waitForSelector(selector, { visible: true, timeout: 3000 });
                     await new Promise(resolve => setTimeout(resolve, 500));
                     await page.click(selector);

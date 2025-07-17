@@ -58,90 +58,60 @@ app.post('/api/affiliate-link', async (req, res) => {
         await page.setCookie(...cookies);
         console.log('Cookies do Mercado Livre injetados!');
 
-        console.log('Acessando produto:', productUrl);
-        await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+        // --- NOVO FLUXO USANDO LINKBUILDER ---
+        console.log('Acessando linkbuilder do Mercado Livre...');
+        await page.goto('https://www.mercadolivre.com.br/afiliados/linkbuilder', { waitUntil: 'networkidle2', timeout: 30000 });
 
-        // Screenshot para debug
-        await page.screenshot({ path: 'screenshot.png', fullPage: true });
-        console.log('Screenshot tirada!');
+        // Aguarda o campo de URL carregar
+        console.log('Aguardando campo de URL...');
+        await page.waitForSelector('#url-0', { visible: true, timeout: 15000 });
+        await esperar(1000);
 
-        // Espera adicional para garantir carregamento
-        console.log('Aguardando carregamento da página...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        // Cola o link do produto no campo
+        console.log('Colando link do produto no campo...');
+        await page.click('#url-0');
+        await page.keyboard.down('Control');
+        await page.keyboard.press('A'); // Seleciona tudo
+        await page.keyboard.up('Control');
+        await page.keyboard.type(productUrl);
+        console.log('Link colado:', productUrl);
 
-        // --- INÍCIO DO FLUXO PRINCIPAL REFACTORIZADO ---
-        let affiliateLink = null;
+        // Aguarda um pouco e clica no botão "Gerar"
+        await esperar(1000);
+        console.log('Clicando no botão Gerar...');
+        await page.waitForSelector('.button_generate-links', { visible: true, timeout: 10000 });
+        await page.click('.button_generate-links');
+        console.log('Clicou no botão Gerar');
 
-        // 1. Garantir popup aberto
-        console.log('Esperando botão de compartilhar...');
-        await page.waitForSelector('[data-testid="generate_link_button"]', { visible: true, timeout: 15000 });
-        await esperar(500);
-        await page.click('[data-testid="generate_link_button"]');
-        console.log('Clicou no botão de compartilhar');
+        // Aguarda o link ser gerado (campo de resultado aparecer)
+        console.log('Aguardando link ser gerado...');
+        await page.waitForSelector('.textfield-copyLink textarea', { visible: true, timeout: 15000 });
+        await esperar(2000);
 
-        // Aguarda mais tempo para o popup abrir completamente
-        await esperar(3000);
-
-        const popupAberto = await verificarPopupAberto(page);
-        if (!popupAberto) {
-            throw new Error('Popup não abriu após clicar no botão de compartilhar.');
-        }
-        console.log('Popup aberto com sucesso!');
-
-        await page.screenshot({ path: 'screenshot_after_share_10.png', fullPage: true });
-        console.log('Print tirado!');
-
-        // 2. Tentar pegar valor do campo diretamente
-        affiliateLink = await pegarValorCampo(page, FIELD_SELECTORS);
-
-        // 3. Se não encontrou, tenta clicar nos botões de copiar
-        if (!affiliateLink) {
-            let copyButtonFound = false;
-            for (const selector of COPY_BUTTON_SELECTORS) {
-                // Antes de cada seletor, garantir que o popup está aberto
-                const popupAindaAberto = await garantirPopupAberto(page);
-                if (!popupAindaAberto) {
-                    console.log(`Não foi possível abrir o popup para o seletor ${selector} após 3 tentativas. Abortando.`);
-                    break;
-                }
-                try {
-                    console.log(`Tentando seletor para botão de copiar: ${selector}`);
-                    await page.waitForSelector(selector, { visible: true, timeout: 3000 });
-                    await esperar(500);
-                    await page.click(selector);
-                    console.log(`Clicou no botão de copiar link usando seletor: ${selector}`);
-                    copyButtonFound = true;
-                    await esperar(1500);
-                    // Após clicar, tenta pegar o valor do campo novamente
-                    affiliateLink = await pegarValorCampo(page, FIELD_SELECTORS);
-                    if (affiliateLink) break;
-                } catch (e) {
-                    console.log(`Seletor ${selector} não encontrado:`, e.message);
-                }
-            }
-        }
-        if (!affiliateLink) {
-            throw new Error('Não foi possível obter o link de afiliado de nenhum campo.');
-        }
-
-        // Método 2: Gerar link baseado na URL do produto
-        if (!affiliateLink) {
-            console.log('Método 2: Gerando link baseado na URL...');
-            const currentUrl = page.url();
-            const productId = currentUrl.match(/MLB-?\d+/i);
-            if (productId) {
-                // Aqui você pode adicionar seu ID de afiliado
-                affiliateLink = `https://www.mercadolivre.com.br/${productId[0]}?affiliate_id=SEU_ID_AQUI`;
-                console.log('Link de afiliado gerado via URL:', affiliateLink);
-            }
-        }
+        // Pega o valor do link gerado
+        affiliateLink = await page.evaluate(() => {
+            const field = document.querySelector('.textfield-copyLink textarea');
+            return field ? field.value.trim() : null;
+        });
 
         if (!affiliateLink) {
-            console.log('Não foi possível obter o link de afiliado por nenhum método.');
-            throw new Error('Não foi possível obter o link de afiliado. Tente novamente.');
+            throw new Error('Não foi possível obter o link de afiliado gerado.');
         }
 
         console.log('Link de afiliado gerado:', affiliateLink);
+
+        // Clica no botão "Copiar" para copiar o link
+        console.log('Clicando no botão Copiar...');
+        await page.waitForSelector('.copy-button', { visible: true, timeout: 10000 });
+        await page.click('.copy-button');
+        console.log('Clicou no botão Copiar');
+
+        // Aguarda um pouco para garantir que foi copiado
+        await esperar(1000);
+
+        // Agora vamos acessar a página do produto para pegar os dados
+        console.log('Acessando página do produto para pegar dados...');
+        await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
         // Scraping do nome do produto
         const nomeProduto = await page.evaluate(() => {

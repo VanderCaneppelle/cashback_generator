@@ -25,7 +25,7 @@ app.post('/api/affiliate-link', async (req, res) => {
     try {
         console.log('Abrindo navegador...');
         browser = await puppeteer.launch({
-            headless: true, // Para debug visual
+            headless: true, // Sempre headless em produção
             userDataDir: __dirname + '/../chrome_profile',
             args: [
                 '--no-sandbox',
@@ -48,6 +48,20 @@ app.post('/api/affiliate-link', async (req, res) => {
 
         console.log('Acessando produto:', productUrl);
         await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        // Validação se está logado
+        const isLogged = await page.evaluate(() => {
+            return !!document.querySelector('a[data-testid="user-menu-my-account"]') ||
+                !!document.querySelector('img.nav-header-avatar') ||
+                !!document.querySelector('a[data-testid="user-menu-trigger"]');
+        });
+        console.log('Usuário está logado?', isLogged);
+        await page.screenshot({ path: 'screenshot.png', fullPage: true });
+        console.log('Screenshot tirada!');
+        if (!isLogged) {
+            await browser.close();
+            return res.status(401).json({ error: 'Usuário NÃO está logado no Mercado Livre! Atualize o perfil.', screenshot: '/screenshot' });
+        }
 
         // Espera adicional para garantir carregamento
         console.log('Aguardando carregamento da página...');
@@ -161,6 +175,11 @@ app.post('/api/affiliate-link', async (req, res) => {
         if (browser) await browser.close();
         res.status(500).json({ error: 'Erro ao gerar link de afiliado: ' + err.message });
     }
+});
+
+// Rota para baixar screenshot
+app.get('/screenshot', (req, res) => {
+    res.sendFile(__dirname + '/../screenshot.png');
 });
 
 app.post('/api/salvar-link', async (req, res) => {

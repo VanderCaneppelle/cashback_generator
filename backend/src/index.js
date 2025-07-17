@@ -83,6 +83,8 @@ app.post('/api/affiliate-link', async (req, res) => {
                 try {
                     console.log(`Tentando seletor: ${selector}`);
                     await page.waitForSelector(selector, { timeout: 3000 });
+                    await page.screenshot({ path: 'screenshot2.png', fullPage: true });
+                    console.log('Screenshot tirada!');
                     await page.click(selector);
                     console.log(`Botão encontrado e clicado: ${selector}`);
                     shareButtonFound = true;

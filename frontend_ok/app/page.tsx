@@ -19,6 +19,7 @@ export default function Home() {
   const [showLinks, setShowLinks] = useState(false);
   const [meusLinks, setMeusLinks] = useState<any[]>([]);
   const [linksLoading, setLinksLoading] = useState(false);
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -204,124 +205,219 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4 relative">
-      {/* Cabeçalho com e-mail, botão Meus links e Sair */}
-      <div className="w-full max-w-5xl flex justify-end items-center absolute top-8 right-0 pr-8 z-10 gap-4">
-        <span className="text-sm text-gray-700">Logado como: {user.email}</span>
-        <button
-          className="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg px-5 py-2 text-sm shadow transition-colors"
-          onClick={buscarMeusLinks}
-        >
-          Meus links
-        </button>
-        <button onClick={handleLogout} className="text-xs text-orange-600 underline ml-2">Sair</button>
-      </div>
-      {/* Card de listagem de links */}
-      {showLinks && (
-        <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-6 border border-gray-100 mb-8 mt-20">
-          <div className="w-full bg-gray-50 rounded-xl p-4 mb-4 shadow-inner">
-            <div className="flex flex-col gap-2 mb-2">
-              <div className="font-bold text-gray-700">Totais:</div>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <span className="text-orange-500">Pendente: <b>R$ {totaisPorStatus('pendente').toFixed(2)}</b></span>
-                <span className="text-green-600">Recebido: <b>R$ {totaisPorStatus('recebido').toFixed(2)}</b></span>
-                <span className="text-blue-600">Análise: <b>R$ {totaisPorStatus('analise').toFixed(2)}</b></span>
-              </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Cabeçalho responsivo */}
+      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo/Nome do app */}
+            <div className="flex-shrink-0">
+              <h1 className="text-xl font-bold text-orange-600">Cashback Generator</h1>
             </div>
-            {linksLoading ? (
-              <div className="text-center text-gray-500">Carregando...</div>
-            ) : meusLinks.length === 0 ? (
-              <div className="text-center text-gray-400">Nenhum link gerado ainda.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm mt-2 border-separate border-spacing-y-1">
-                  <thead>
-                    <tr className="text-left text-gray-600 bg-gray-100">
-                      <th className="px-2 py-1 rounded-l-lg">Produto</th>
-                      <th className="px-2 py-1">Valor</th>
-                      <th className="px-2 py-1">Cashback</th>
-                      <th className="px-2 py-1">Status</th>
-                      <th className="px-2 py-1 rounded-r-lg"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {meusLinks.map(link => (
-                      <tr key={link.id} className="bg-white hover:bg-orange-50 border border-gray-200 rounded-lg">
-                        <td className="pr-2 max-w-[180px] truncate font-medium text-gray-800">{link.nome_produto || link.codigo_produto}</td>
-                        <td className="text-gray-700">R$ {Number(link.preco).toFixed(2)}</td>
-                        <td className="text-green-700 font-semibold">R$ {Number(link.valor_cashback).toFixed(2)}</td>
-                        <td className="capitalize text-xs font-semibold text-gray-500">{link.status}</td>
-                        <td>
-                          <a
-                            href={link.link_gerado}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-green-600 underline font-semibold hover:text-green-800"
-                          >
-                            Comprar novamente
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-          <button
-            className="mt-2 text-orange-600 underline text-sm hover:text-orange-800"
-            onClick={() => setShowLinks(false)}
-          >
-            Fechar
-          </button>
-        </div>
-      )}
-      {/* Card principal */}
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-6 border border-gray-100">
-        <h1 className="text-2xl font-bold text-orange-600 text-center">Ganhe cashback em compras no Mercado Livre!</h1>
-        <form onSubmit={handleGerarCashback} className="w-full flex flex-col gap-4">
-          <input
-            type="url"
-            placeholder="Cole o link do produto do Mercado Livre"
-            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-400 bg-gray-50"
-            value={link}
-            onChange={e => setLink(e.target.value)}
-            required
-            disabled={loading}
-          />
-          <button
-            type="submit"
-            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg py-2 transition-colors shadow-md"
-            disabled={loading}
-          >
-            {loading ? "Gerando..." : "Gerar link com Cashback"}
-          </button>
-        </form>
-        {erro && <div className="text-red-500 text-sm font-medium">{erro}</div>}
-        {produto && (
-          <div className="w-full flex flex-col items-center gap-4 mt-4 animate-fade-in">
-            {produto.imagem && (
-              <img src={produto.imagem} alt={produto.nome} className="w-40 h-40 object-contain rounded-xl border bg-gray-100 shadow" />
-            )}
-            <div className="text-lg font-semibold text-center text-gray-900">{produto.nome}</div>
-            <div className="flex flex-col gap-1 text-sm w-full text-gray-700">
-              <div><span className="font-medium">Preço estimado:</span> R$ {produto.preco.toFixed(2)}</div>
-              <div><span className="font-medium text-green-600">Cashback aproximado testes:</span> <span className="font-bold">R$ {cashback.toFixed(2)}</span></div>
-            </div>
-            {linkAfiliado && (
-              <a
-                href={linkAfiliado}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold shadow-md transition-colors"
+
+            {/* Desktop Header */}
+            <div className="hidden md:flex items-center space-x-4">
+              <span className="text-sm text-gray-600">Logado como: {user.email}</span>
+              <button
+                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg px-4 py-2 text-sm transition-colors"
+                onClick={buscarMeusLinks}
               >
-                Comprar com cashback
-              </a>
-            )}
+                Meus links
+              </button>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-orange-600 hover:text-orange-800 underline"
+              >
+                Sair
+              </button>
+            </div>
+
+            {/* Mobile Header */}
+            <div className="md:hidden flex items-center space-x-3">
+              <button
+                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg px-3 py-2 text-sm transition-colors"
+                onClick={buscarMeusLinks}
+              >
+                Meus links
+              </button>
+
+              {/* Dropdown Minha Conta */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg px-3 py-2 text-sm transition-colors"
+                >
+                  Minha conta
+                </button>
+
+                {showAccountDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-100">
+                      {user.email}
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Sair
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Conteúdo principal */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Seção Meus Links */}
+        {showLinks && (
+          <div className="mb-8">
+            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Meus Links de Cashback</h2>
+                <button
+                  onClick={() => setShowLinks(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Totais */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="text-orange-600 text-sm font-medium">Pendente</div>
+                  <div className="text-2xl font-bold text-orange-700">R$ {totaisPorStatus('pendente').toFixed(2)}</div>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-green-600 text-sm font-medium">Recebido</div>
+                  <div className="text-2xl font-bold text-green-700">R$ {totaisPorStatus('recebido').toFixed(2)}</div>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="text-blue-600 text-sm font-medium">Análise</div>
+                  <div className="text-2xl font-bold text-blue-700">R$ {totaisPorStatus('analise').toFixed(2)}</div>
+                </div>
+              </div>
+
+              {/* Lista de produtos */}
+              {linksLoading ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+                  <p className="mt-2 text-gray-500">Carregando seus links...</p>
+                </div>
+              ) : meusLinks.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-lg">Nenhum link gerado ainda.</div>
+                  <p className="text-gray-500 mt-2">Gere seu primeiro link de cashback!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {meusLinks.map(link => (
+                    <div key={link.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1">
+                            {link.nome_produto || link.codigo_produto}
+                          </h3>
+                          <div className="text-xs text-gray-500 capitalize">{link.status}</div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Preço:</span>
+                          <span className="font-semibold text-gray-900">R$ {Number(link.preco).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Cashback:</span>
+                          <span className="font-bold text-green-600">R$ {Number(link.valor_cashback).toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      <a
+                        href={link.link_gerado}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white text-center font-semibold rounded-lg py-2 px-4 text-sm transition-colors block"
+                      >
+                        Comprar novamente
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
-      </div>
-      <footer className="mt-8 text-xs text-gray-400">Seu cashback é calculado automaticamente. Powered by Cashback Generator.</footer>
+
+        {/* Card principal de geração de links */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold text-orange-600 text-center mb-6">Ganhe cashback em compras no Mercado Livre!</h1>
+
+          <form onSubmit={handleGerarCashback} className="w-full flex flex-col gap-4">
+            <input
+              type="url"
+              placeholder="Cole o link do produto do Mercado Livre"
+              className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-400 bg-gray-50"
+              value={link}
+              onChange={e => setLink(e.target.value)}
+              required
+              disabled={loading}
+            />
+            <button
+              type="submit"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg py-3 transition-colors shadow-md"
+              disabled={loading}
+            >
+              {loading ? "Gerando..." : "Gerar link com Cashback"}
+            </button>
+          </form>
+
+          {erro && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="text-red-600 text-sm font-medium">{erro}</div>
+            </div>
+          )}
+
+          {produto && (
+            <div className="w-full flex flex-col items-center gap-4 mt-6 animate-fade-in">
+              {produto.imagem && (
+                <img src={produto.imagem} alt={produto.nome} className="w-40 h-40 object-contain rounded-xl border bg-gray-100 shadow" />
+              )}
+              <div className="text-lg font-semibold text-center text-gray-900">{produto.nome}</div>
+              <div className="flex flex-col gap-2 text-sm w-full text-gray-700 bg-gray-50 rounded-lg p-4">
+                <div className="flex justify-between">
+                  <span className="font-medium">Preço estimado:</span>
+                  <span className="font-bold">R$ {produto.preco.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-green-600">Cashback aproximado:</span>
+                  <span className="font-bold text-green-600">R$ {cashback.toFixed(2)}</span>
+                </div>
+              </div>
+              {linkAfiliado && (
+                <a
+                  href={linkAfiliado}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition-colors"
+                >
+                  Comprar com cashback
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </main>
+
+      <footer className="mt-8 text-center text-xs text-gray-400 pb-4">
+        Seu cashback é calculado automaticamente. Powered by Cashback Generator.
+      </footer>
+
       <Debug />
     </div>
   );

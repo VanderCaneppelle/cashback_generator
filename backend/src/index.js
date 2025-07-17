@@ -5,6 +5,7 @@ require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -179,7 +180,7 @@ app.post('/api/affiliate-link', async (req, res) => {
 
 // Rota para baixar screenshot
 app.get('/screenshot', (req, res) => {
-    res.sendFile(__dirname + '/../screenshot.png');
+    res.sendFile(path.resolve('screenshot.png'));
 });
 
 app.post('/api/salvar-link', async (req, res) => {

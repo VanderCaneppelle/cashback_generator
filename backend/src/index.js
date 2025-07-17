@@ -64,13 +64,51 @@ app.post('/api/affiliate-link', async (req, res) => {
         // --- NOVO BLOCO DE SCRAPING DO LINK DE AFILIADO ---
         let affiliateLink = null;
         try {
-            // 1. Espera e clica no botão de compartilhar
+            // 1. Espera e clica no botão de compartilhar (com verificação de popup)
             console.log('Esperando botão de compartilhar...');
             await page.waitForSelector('[data-testid="generate_link_button"]', { visible: true, timeout: 15000 });
-            await new Promise(resolve => setTimeout(resolve, 500));
-            await page.click('[data-testid="generate_link_button"]');
-            console.log('Clicou no botão de compartilhar');
-            await new Promise(resolve => setTimeout(resolve, 4000));
+
+            let popupAberto = false;
+            let tentativas = 0;
+
+            while (!popupAberto && tentativas < 3) {
+                tentativas++;
+                console.log(`Tentativa ${tentativas}: Clicando no botão de compartilhar...`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await page.click('[data-testid="generate_link_button"]');
+                console.log('Clicou no botão de compartilhar');
+
+                // Aguarda 2 segundos e verifica se o popup está aberto
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                popupAberto = await page.evaluate(() => {
+                    // Verifica se existe algum elemento que indica que o popup está aberto
+                    const popupSelectors = [
+                        '.link-generator',
+                        '[role="dialog"]',
+                        '[data-testid="popper"]',
+                        '.andes-popper',
+                        '[data-testid="copy-button__label_link"]',
+                        '[data-testid="text-field__label_link"]',
+                        '[data-testid="share-link-input"]'
+                    ];
+
+                    return popupSelectors.some(selector => document.querySelector(selector) !== null);
+                });
+
+                console.log(`Popup aberto na tentativa ${tentativas}:`, popupAberto);
+
+                if (!popupAberto && tentativas < 3) {
+                    console.log('Popup não abriu, aguardando 2 segundos antes da próxima tentativa...');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+
+            if (!popupAberto) {
+                throw new Error('Popup não abriu após 3 tentativas de clicar no botão de compartilhar.');
+            }
+
+            console.log('Popup aberto com sucesso!');
 
             // 2. Espera e clica no botão de copiar link
             console.log('Esperando botão de copiar link...');

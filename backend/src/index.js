@@ -28,7 +28,6 @@ app.post('/api/affiliate-link', async (req, res) => {
         console.log('Abrindo navegador...');
         browser = await puppeteer.launch({
             headless: true, // Sempre headless em produção
-            userDataDir: __dirname + '/../chrome_profile',
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -62,59 +61,37 @@ app.post('/api/affiliate-link', async (req, res) => {
         console.log('Aguardando carregamento da página...');
         await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // Tentar múltiplos métodos para obter o link de afiliado
-        console.log('Tentando obter link de afiliado...');
+        // --- NOVO BLOCO DE SCRAPING DO LINK DE AFILIADO ---
         let affiliateLink = null;
-
         try {
             // 1. Espera e clica no botão de compartilhar
+            console.log('Esperando botão de compartilhar...');
             await page.waitForSelector('[data-testid="generate_link_button"]', { visible: true, timeout: 15000 });
+            await new Promise(resolve => setTimeout(resolve, 500));
             await page.click('[data-testid="generate_link_button"]');
             console.log('Clicou no botão de compartilhar');
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 4000));
 
-            // 2. Tenta clicar no botão de copiar link
-            let copyButtonFound = false;
-            try {
-                await page.waitForSelector('[data-testid="copy-button__label_link"]', { visible: true, timeout: 7000 });
-                await page.click('[data-testid="copy-button__label_link"]');
-                console.log('Clicou no botão de copiar link');
-                copyButtonFound = true;
-            } catch (e) {
-                console.log('Primeira tentativa: botão de copiar link não encontrado, tentando novamente...');
-                // 3. Tenta clicar novamente no botão de compartilhar e depois no de copiar
-                await page.click('[data-testid="generate_link_button"]');
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                try {
-                    await page.waitForSelector('[data-testid="copy-button__label_link"]', { visible: true, timeout: 7000 });
-                    await page.click('[data-testid="copy-button__label_link"]');
-                    console.log('Clicou no botão de copiar link na segunda tentativa');
-                    copyButtonFound = true;
-                } catch (e2) {
-                    console.log('Segunda tentativa: botão de copiar link não encontrado');
-                }
-            }
+            // 2. Espera e clica no botão de copiar link
+            console.log('Esperando botão de copiar link...');
+            await page.waitForSelector('[data-testid="copy-button__label_link"]', { visible: true, timeout: 7000 });
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await page.click('[data-testid="copy-button__label_link"]');
+            console.log('Clicou no botão de copiar link');
+            await new Promise(resolve => setTimeout(resolve, 1500));
 
-            if (!copyButtonFound) {
-                throw new Error('Não foi possível encontrar o botão de copiar link após duas tentativas.');
-            }
-
-            // Tenta pegar o link do input (caso esteja visível)
+            // 3. Pega o valor do campo de link diretamente
             affiliateLink = await page.evaluate(() => {
-                const input = document.querySelector('input[data-testid="share-link-input"]');
-                return input ? input.value : null;
+                const textarea = document.querySelector('[data-testid="text-field__label_link"]');
+                return textarea ? textarea.value.trim() : null;
             });
+            console.log('Valor capturado do campo [data-testid="text-field__label_link"]:', affiliateLink);
 
-            // Se não achou, tentar pegar do clipboard
             if (!affiliateLink) {
-                try {
-                    affiliateLink = await page.evaluate(() => navigator.clipboard.readText());
-                } catch (e) {
-                    console.log('Não foi possível acessar o clipboard:', e);
-                }
+                throw new Error('Não foi possível obter o link de afiliado do campo [data-testid="text-field__label_link"].');
             }
         } catch (e) {
-            console.log('Erro ao tentar gerar/clicar nos botões:', e.message);
+            console.log('Erro ao tentar gerar/clicar nos botões ou acessar clipboard:', e.message);
         }
 
         // Método 2: Gerar link baseado na URL do produto
@@ -217,4 +194,4 @@ app.get('/api/links', async (req, res) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Backend rodando na porta ${PORT}`);
-}); 
+});

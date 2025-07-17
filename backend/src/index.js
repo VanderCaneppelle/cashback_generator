@@ -18,17 +18,14 @@ app.get('/', (req, res) => {
 // Rota para gerar link de afiliado
 app.post('/api/affiliate-link', async (req, res) => {
     const { productUrl } = req.body;
-    console.log('Recebida requisição para gerar link de afiliado:', productUrl);
-    if (!productUrl) {
-        console.log('URL do produto não informada.');
-        return res.status(400).json({ error: 'URL do produto é obrigatória.' });
-    }
+    console.log('--- Nova requisição /api/affiliate-link ---');
+    console.log('URL recebida:', productUrl);
 
     let browser;
     try {
         console.log('Abrindo navegador...');
         browser = await puppeteer.launch({
-            headless: true,
+            headless: false, // Para debug visual
             userDataDir: __dirname + '/../chrome_profile',
             args: [
                 '--no-sandbox',
@@ -44,7 +41,7 @@ app.post('/api/affiliate-link', async (req, res) => {
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 900 });
-        await page.setUserAgent('Mozilla/5.0 (Windows NT10 Win64; x64) AppleWebKit/53736(KHTML, like Gecko) Chrome/11500 Safari/537.36');
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
         await page.evaluateOnNewDocument(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
         });
@@ -135,21 +132,24 @@ app.post('/api/affiliate-link', async (req, res) => {
 
         // Scraping do nome do produto
         const nomeProduto = await page.evaluate(() => {
-            const el = document.querySelector('h1tle');
+            const el = document.querySelector('h1.ui-pdp-title');
             return el ? el.innerText.trim() : null;
         });
+        console.log('Nome do produto:', nomeProduto);
 
         // Scraping do preço do produto
         const precoProduto = await page.evaluate(() => {
             const el = document.querySelector('.ui-pdp-price__second-line .andes-money-amount__fraction');
-            return el ? el.innerText.replace('.', ',').replace(',', '.').trim() : null;
+            return el ? el.innerText.replace('.', '').replace(',', '.') : null;
         });
+        console.log('Preço do produto:', precoProduto);
 
         // Scraping da imagem principal do produto
         const imagemProduto = await page.evaluate(() => {
             const el = document.querySelector('.ui-pdp-gallery__figure img, .ui-pdp-image.ui-pdp-gallery__figure__image');
             return el ? el.src : null;
         });
+        console.log('Imagem do produto:', imagemProduto);
 
         // Fechar o navegador
         await page.close();
@@ -157,7 +157,7 @@ app.post('/api/affiliate-link', async (req, res) => {
 
         res.json({ affiliateLink, nome: nomeProduto, preco: precoProduto, imagem: imagemProduto });
     } catch (err) {
-        console.log('Erro ao gerar link de afiliado:', err.message);
+        console.error('Erro ao gerar link de afiliado:', err);
         if (browser) await browser.close();
         res.status(500).json({ error: 'Erro ao gerar link de afiliado: ' + err.message });
     }

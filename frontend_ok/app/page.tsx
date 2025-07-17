@@ -20,6 +20,9 @@ export default function Home() {
   const [meusLinks, setMeusLinks] = useState<any[]>([]);
   const [linksLoading, setLinksLoading] = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Estamos preparando seu link...");
+  const [progress, setProgress] = useState(0);
+  const [produtoGerado, setProdutoGerado] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -76,6 +79,32 @@ export default function Home() {
       return;
     }
     setLoading(true);
+    setProgress(0);
+
+    // Array de mensagens para mostrar durante o loading
+    const messages = [
+      "Estamos preparando seu link...",
+      "Calculando seu cashback...",
+      "Estamos contando seu dinheiro...",
+      "Quase lá, só mais um pouco..."
+    ];
+
+    let messageIndex = 0;
+    let progressValue = 0;
+
+    // Intervalo para mensagens (aumentado para 3.5 segundos)
+    const messageInterval = setInterval(() => {
+      setLoadingMessage(messages[messageIndex]);
+      messageIndex = (messageIndex + 1) % messages.length;
+    }, 3500);
+
+    // Intervalo para progresso (aumenta de 10 em 10 até 90%)
+    const progressInterval = setInterval(() => {
+      if (progressValue < 90) {
+        progressValue += 10;
+        setProgress(progressValue);
+      }
+    }, 1100);
     try {
       // Chama o backend para gerar o link de afiliado e buscar dados reais
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
@@ -89,6 +118,7 @@ export default function Home() {
       if (data.affiliateLink && data.nome && data.preco) {
         setLinkAfiliado(data.affiliateLink);
         setProduto({ nome: data.nome, preco: Number(data.preco), imagem: data.imagem });
+        setProdutoGerado(true);
         // Salva o link gerado no banco
         await fetch(`${backendUrl}/api/salvar-link`, {
           method: "POST",
@@ -112,7 +142,14 @@ export default function Home() {
       setErro(`Erro ao conectar com o backend: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
       setProduto(null);
     } finally {
-      setLoading(false);
+      clearInterval(messageInterval);
+      clearInterval(progressInterval);
+      setProgress(100); // Finaliza em 100% quando termina
+      setTimeout(() => {
+        setLoading(false);
+        setLoadingMessage("Estamos preparando seu link...");
+        setProgress(0);
+      }, 500); // Pequeno delay para mostrar 100%
     }
   }
 
@@ -133,6 +170,14 @@ export default function Home() {
   function extrairCodigoProduto(url: string) {
     const match = url.match(/MLB-?\d+/i);
     return match ? match[0].replace('-', '') : null;
+  }
+
+  function limparDados() {
+    setLink("");
+    setProduto(null);
+    setLinkAfiliado(null);
+    setErro("");
+    setProdutoGerado(false);
   }
 
   // Comissão e cashback dinâmicos (exemplo: 4% de comissão, 50% de cashback)
@@ -271,119 +316,72 @@ export default function Home() {
 
       {/* Conteúdo principal */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Seção Meus Links */}
-        {showLinks && (
-          <div className="mb-8">
-            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Meus Links de Cashback</h2>
-                <button
-                  onClick={() => setShowLinks(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Totais */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <div className="text-orange-600 text-sm font-medium">Pendente</div>
-                  <div className="text-2xl font-bold text-orange-700">R$ {totaisPorStatus('pendente').toFixed(2)}</div>
-                </div>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="text-green-600 text-sm font-medium">Recebido</div>
-                  <div className="text-2xl font-bold text-green-700">R$ {totaisPorStatus('recebido').toFixed(2)}</div>
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="text-blue-600 text-sm font-medium">Análise</div>
-                  <div className="text-2xl font-bold text-blue-700">R$ {totaisPorStatus('analise').toFixed(2)}</div>
-                </div>
-              </div>
-
-              {/* Lista de produtos */}
-              {linksLoading ? (
-                <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-                  <p className="mt-2 text-gray-500">Carregando seus links...</p>
-                </div>
-              ) : meusLinks.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-gray-400 text-lg">Nenhum link gerado ainda.</div>
-                  <p className="text-gray-500 mt-2">Gere seu primeiro link de cashback!</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {meusLinks.map(link => (
-                    <div key={link.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1">
-                            {link.nome_produto || link.codigo_produto}
-                          </h3>
-                          <div className="text-xs text-gray-500 capitalize">{link.status}</div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 mb-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Preço:</span>
-                          <span className="font-semibold text-gray-900">R$ {Number(link.preco).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Cashback:</span>
-                          <span className="font-bold text-green-600">R$ {Number(link.valor_cashback).toFixed(2)}</span>
-                        </div>
-                      </div>
-
-                      <a
-                        href={link.link_gerado}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full bg-green-600 hover:bg-green-700 text-white text-center font-semibold rounded-lg py-2 px-4 text-sm transition-colors block"
-                      >
-                        Comprar novamente
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Card principal de geração de links */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 max-w-2xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 max-w-4xl mx-auto mb-8">
           <h1 className="text-2xl font-bold text-orange-600 text-center mb-6">Ganhe cashback em compras no Mercado Livre!</h1>
-
-          <form onSubmit={handleGerarCashback} className="w-full flex flex-col gap-4">
-            <input
-              type="url"
-              placeholder="Cole o link do produto do Mercado Livre"
-              className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-400 bg-gray-50"
-              value={link}
-              onChange={e => setLink(e.target.value)}
-              required
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg py-3 transition-colors shadow-md"
-              disabled={loading}
-            >
-              {loading ? "Gerando..." : "Gerar link com Cashback"}
-            </button>
+          <form onSubmit={handleGerarCashback} className="w-full flex flex-col items-center gap-4">
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden w-full max-w-2xl ${produtoGerado ? "max-h-0 opacity-0" : "max-h-24 opacity-100"
+              }`}>
+              <input
+                type="url"
+                placeholder="Cole o link do produto do Mercado Livre"
+                className={`w-full border border-gray-300 rounded-lg px-4 py-4 focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 placeholder-gray-400 text-base ${loading ? "bg-gray-100 cursor-not-allowed" : "bg-gray-50"
+                  }`}
+                value={link}
+                onChange={e => setLink(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="w-full max-w-2xl">
+              <button
+                type={produtoGerado ? "button" : "submit"}
+                onClick={produtoGerado ? limparDados : undefined}
+                className={`w-full font-semibold rounded-lg py-3 transition-colors shadow-md ${loading
+                  ? "bg-orange-400 text-white cursor-not-allowed"
+                  : produtoGerado
+                    ? "bg-blue-500 hover:bg-blue-600 text-white"
+                    : "bg-orange-500 hover:bg-orange-600 text-white"
+                  }`}
+                disabled={loading}
+              >
+                {loading ? "Gerando..." : produtoGerado ? "Gerar novo link" : "Gerar link com Cashback"}
+              </button>
+            </div>
           </form>
-
           {erro && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <div className="text-red-600 text-sm font-medium">{erro}</div>
             </div>
           )}
+          {/* Loading State */}
+          {loading && (
+            <div className="w-full flex flex-col items-center gap-4 mt-6">
+              {/* Spinner */}
+              <div className="mb-4">
+                <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-orange-200 border-t-orange-600"></div>
+              </div>
 
-          {produto && (
+              {/* Mensagem */}
+              <div className="text-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Gerando seu link...</h3>
+                <p className="text-gray-600 animate-pulse">{loadingMessage}</p>
+              </div>
+
+              {/* Barra de progresso animada */}
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                <div
+                  className="bg-orange-600 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+
+              <p className="text-sm text-gray-500">Progresso: {progress}%</p>
+            </div>
+          )}
+
+          {/* Product Display */}
+          {produto && !loading && (
             <div className="w-full flex flex-col items-center gap-4 mt-6 animate-fade-in">
               {produto.imagem && (
                 <img src={produto.imagem} alt={produto.nome} className="w-40 h-40 object-contain rounded-xl border bg-gray-100 shadow" />
@@ -412,7 +410,88 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Seção Meus Links */}
+        {showLinks && (
+          <div className="mb-8 max-w-4xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Meus Links de Cashback</h2>
+                <button
+                  onClick={() => setShowLinks(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Totais */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="text-orange-600 text-sm font-medium">Pendente</div>
+                  <div className="text-2xl font-bold text-orange-700">R$ {totaisPorStatus('pendente').toFixed(2)}</div>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-green-600 text-sm font-medium">Recebido</div>
+                  <div className="text-2xl font-bold text-green-700">R$ {totaisPorStatus('recebido').toFixed(2)}</div>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="text-blue-600 text-sm font-medium">Análise</div>
+                  <div className="text-2xl font-bold text-blue-700">R$ {totaisPorStatus('analise').toFixed(2)}</div>
+                </div>
+              </div>
+              {/* Lista de produtos */}
+              {linksLoading ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+                  <p className="mt-2 text-gray-500">Carregando seus links...</p>
+                </div>
+              ) : meusLinks.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-lg">Nenhum link gerado ainda.</div>
+                  <p className="text-gray-500 mt-2">Gere seu primeiro link de cashback!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {meusLinks.map(link => (
+                    <div key={link.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1">
+                            {link.nome_produto || link.codigo_produto}
+                          </h3>
+                          <div className="text-xs text-gray-500 capitalize">{link.status}</div>
+                        </div>
+                      </div>
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Preço:</span>
+                          <span className="font-semibold text-gray-900">R$ {Number(link.preco).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Cashback:</span>
+                          <span className="font-bold text-green-600">R$ {Number(link.valor_cashback).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <a
+                        href={link.link_gerado}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white text-center font-semibold rounded-lg py-2 px-4 text-sm transition-colors block"
+                      >
+                        Comprar novamente
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
+
+
 
       <footer className="mt-8 text-center text-xs text-gray-400 pb-4">
         Seu cashback é calculado automaticamente. Powered by Cashback Generator.

@@ -110,78 +110,103 @@ app.post('/api/affiliate-link', async (req, res) => {
 
             console.log('Popup aberto com sucesso!');
 
-            // 2. Espera e clica no botão de copiar link (com múltiplos seletores)
-            console.log('Esperando botão de copiar link...');
-            let copyButtonFound = false;
-
-            // Aguarda um pouco mais para o conteúdo do popup carregar
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Tenta múltiplos seletores para o botão de copiar
-            const copySelectors = [
-                '[data-testid="copy-button__label_link"]',
-                '[data-testid="copy-button"]',
-                'button[aria-label*="Link do produto"]',
-                'button[aria-label*="copy"]',
-                '.copy-button',
-                '[data-testid*="copy"]',
-                'button:contains("Copiar")',
-                'button:contains("Copy")'
+            // 2. Após o popup ser aberto, tentar pegar o valor do campo diretamente
+            const fieldSelectors = [
+                '[data-testid="text-field__label_link"]',
+                '[data-testid="share-link-input"]',
+                'input[readonly]',
+                'textarea[readonly]',
+                '.share-link-input',
+                '[data-testid*="link"]'
             ];
 
-            for (const selector of copySelectors) {
-                // Antes de cada seletor, garantir que o popup está aberto
-                let popupAindaAberto = false;
-                let tentativasPopup = 0;
-                while (!popupAindaAberto && tentativasPopup < 3) {
-                    tentativasPopup++;
-                    popupAindaAberto = await page.evaluate(() => {
-                        const popupSelectors = [
-                            '.link-generator',
-                            '[role="dialog"]',
-                            '[data-testid="popper"]',
-                            '.andes-popper'
-                        ];
-                        return popupSelectors.some(sel => document.querySelector(sel) !== null);
-                    });
-                    if (!popupAindaAberto) {
-                        console.log(`Popup fechado antes do seletor ${selector}, tentativa ${tentativasPopup} de reabrir...`);
-                        await page.click('[data-testid="generate_link_button"]');
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                    }
-                }
-                if (!popupAindaAberto) {
-                    console.log(`Não foi possível abrir o popup para o seletor ${selector} após 3 tentativas. Abortando.`);
-                    break;
-                }
+            for (const selector of fieldSelectors) {
                 try {
-                    console.log(`Tentando seletor para botão de copiar: ${selector}`);
-                    await page.waitForSelector(selector, { visible: true, timeout: 3000 });
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    await page.click(selector);
-                    console.log(`Clicou no botão de copiar link usando seletor: ${selector}`);
-                    copyButtonFound = true;
-                    break;
+                    affiliateLink = await page.evaluate((sel) => {
+                        const field = document.querySelector(sel);
+                        if (field && typeof field.value === 'string' && field.value.trim().length > 0) {
+                            return field.value.trim();
+                        }
+                        return null;
+                    }, selector);
+                    if (affiliateLink) {
+                        console.log(`Valor capturado do campo ${selector}:`, affiliateLink);
+                        break;
+                    }
                 } catch (e) {
-                    console.log(`Seletor ${selector} não encontrado:`, e.message);
+                    console.log(`Campo ${selector} não encontrado:`, e.message);
                 }
             }
-
-            if (!copyButtonFound) {
-                console.log('Nenhum botão de copiar encontrado, tentando pegar link diretamente...');
-            } else {
-                await new Promise(resolve => setTimeout(resolve, 1500));
-            }
-
-            // 3. Pega o valor do campo de link diretamente
-            affiliateLink = await page.evaluate(() => {
-                const textarea = document.querySelector('[data-testid="text-field__label_link"]');
-                return textarea ? textarea.value.trim() : null;
-            });
-            console.log('Valor capturado do campo [data-testid="text-field__label_link"]:', affiliateLink);
 
             if (!affiliateLink) {
-                throw new Error('Não foi possível obter o link de afiliado do campo [data-testid="text-field__label_link"].');
+                // Se não encontrou o valor, segue tentando clicar nos botões de copiar como fallback
+                let copyButtonFound = false;
+                const copySelectors = [
+                    '[data-testid="copy-button__label_link"]',
+                    '[data-testid="copy-button"]',
+                    'button[aria-label*="Link do produto"]',
+                    'button[aria-label*="copy"]',
+                    '.copy-button',
+                    '[data-testid*="copy"]',
+                    'button:contains("Copiar")',
+                    'button:contains("Copy")'
+                ];
+                for (const selector of copySelectors) {
+                    // Antes de cada seletor, garantir que o popup está aberto
+                    let popupAindaAberto = false;
+                    let tentativasPopup = 0;
+                    while (!popupAindaAberto && tentativasPopup < 3) {
+                        tentativasPopup++;
+                        popupAindaAberto = await page.evaluate(() => {
+                            const popupSelectors = [
+                                '.link-generator',
+                                '[role="dialog"]',
+                                '[data-testid="popper"]',
+                                '.andes-popper'
+                            ];
+                            return popupSelectors.some(sel => document.querySelector(sel) !== null);
+                        });
+                        if (!popupAindaAberto) {
+                            console.log(`Popup fechado antes do seletor ${selector}, tentativa ${tentativasPopup} de reabrir...`);
+                            await page.click('[data-testid="generate_link_button"]');
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                        }
+                    }
+                    if (!popupAindaAberto) {
+                        console.log(`Não foi possível abrir o popup para o seletor ${selector} após 3 tentativas. Abortando.`);
+                        break;
+                    }
+                    try {
+                        console.log(`Tentando seletor para botão de copiar: ${selector}`);
+                        await page.waitForSelector(selector, { visible: true, timeout: 3000 });
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        await page.click(selector);
+                        console.log(`Clicou no botão de copiar link usando seletor: ${selector}`);
+                        copyButtonFound = true;
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        // Após clicar, tenta pegar o valor do campo novamente
+                        for (const fieldSel of fieldSelectors) {
+                            try {
+                                affiliateLink = await page.evaluate((sel) => {
+                                    const field = document.querySelector(sel);
+                                    return field ? field.value.trim() : null;
+                                }, fieldSel);
+                                if (affiliateLink) {
+                                    console.log(`Valor capturado do campo ${fieldSel} após clicar:`, affiliateLink);
+                                    break;
+                                }
+                            } catch (e) {
+                                console.log(`Campo ${fieldSel} não encontrado após clicar:`, e.message);
+                            }
+                        }
+                        if (affiliateLink) break;
+                    } catch (e) {
+                        console.log(`Seletor ${selector} não encontrado:`, e.message);
+                    }
+                }
+            }
+            if (!affiliateLink) {
+                throw new Error('Não foi possível obter o link de afiliado de nenhum campo.');
             }
         } catch (e) {
             console.log('Erro ao tentar gerar/clicar nos botões ou acessar clipboard:', e.message);

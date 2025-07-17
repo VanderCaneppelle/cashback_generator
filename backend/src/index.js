@@ -111,7 +111,7 @@ app.post('/api/affiliate-link', async (req, res) => {
                     for (const selector of copyLinkSelectors) {
                         try {
                             console.log(`Tentando seletor de copiar link: ${selector}`);
-                            await page.waitForSelector(selector, { visible: true, timeout: 10000 });
+                            await page.waitForSelector(selector, { visible: true, timeout: 20000 });
                             await page.screenshot({ path: `screenshot_after_share_10.png`, fullPage: true })
                             console.log('Screenshot após clicar no botão de compartilhar E aguardar 10 segundos!')
                             await page.click(selector);

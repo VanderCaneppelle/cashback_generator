@@ -1,4 +1,1 @@
-web: curl -c /tmp/cookies.txt -s -L "https://drive.google.com/uc?export=download&id=17maS0XP78aSFaA3RSMPviR3YRdsqUrTN" > /tmp/intermediate.html && \
-CONFIRM=$(awk '/download/ {print $NF}' /tmp/intermediate.html | sed 's/.*confirm=\\([^&]*\\).*/\\1/') && \
-curl -Lb /tmp/cookies.txt "https://drive.google.com/uc?export=download&confirm=$CONFIRM&id=17maS0XP78aSFaA3RSMPviR3YRdsqUrTN" -o chrome_profile.zip && \
-unzip -o chrome_profile.zip -d chrome_profile && npm start
+web: curl -c /tmp/cookies.txt -s -L "https://drive.google.com/uc?export=download&id=17maS0XP78aSFaA3RSMPviR3YRdsqUrTN" > /tmp/intermediate.html && CONFIRM=$(awk '/download/ {print $NF}' /tmp/intermediate.html | sed 's/.*confirm=\\([^&]*\\).*/\\1/') && curl -Lb /tmp/cookies.txt "https://drive.google.com/uc?export=download&confirm=$CONFIRM&id=17maS0XP78aSFaA3RSMPviR3YRdsqUrTN" -o chrome_profile.zip && unzip -o chrome_profile.zip -d chrome_profile && npm start

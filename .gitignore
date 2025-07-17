@@ -37,4 +37,5 @@ backend/chrome_profile/
 
 # Outros
 *.local
-.idea/ backend/chrome_profile.zip
+.idea/ 
+backend/chrome_profile.zip

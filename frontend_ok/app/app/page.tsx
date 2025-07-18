@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "../../src/utils/supabaseClient";
 import { useEffect } from "react";
 import Debug from "../debug";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
     const [link, setLink] = useState("");
@@ -30,6 +31,9 @@ export default function Home() {
     const [progress, setProgress] = useState(0);
     const [produtoGerado, setProdutoGerado] = useState(false);
     const [percentualComissao, setPercentualComissao] = useState<number | null>(null);
+    const [signupSuccess, setSignupSuccess] = useState(false);
+
+    const router = useRouter();
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data }) => {
@@ -75,6 +79,8 @@ export default function Home() {
                         telefone: form.telefone
                     }
                 ]);
+                router.push("/verifique-email");
+                return;
             }
             if (error) setAuthError(error.message);
         } else {
@@ -233,12 +239,30 @@ export default function Home() {
 
     if (!user) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 p-4">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 p-4 relative">
+                {/* Botão voltar */}
+                <button
+                    onClick={() => router.push("/")}
+                    className="absolute top-4 left-4 text-gray-600 hover:text-gray-800 transition-colors"
+                    title="Voltar à página inicial"
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </button>
+
                 <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-6 border border-gray-100">
                     <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Login" className="w-20 h-20 mb-2 drop-shadow" />
                     <h1 className="text-2xl font-bold text-orange-600 text-center mb-1">Entrar ou cadastrar</h1>
                     <p className="text-gray-600 text-center text-base mb-2">Acesse sua conta para gerar links de cashback e economizar em todas as suas compras!</p>
                     <span className="text-xs text-orange-400 font-semibold mb-2">É rápido, fácil e seguro 🚀</span>
+                    {signupSuccess ? (
+                        <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 text-center w-full mb-4">
+                            Cadastro realizado com sucesso!<br />
+                            Um e-mail de confirmação foi enviado para você.<br />
+                            Por favor, verifique sua caixa de entrada e confirme seu cadastro para acessar a plataforma.
+                        </div>
+                    ) : null}
                     <form onSubmit={handleAuth} className="w-full flex flex-col gap-4">
                         <input
                             type="email"

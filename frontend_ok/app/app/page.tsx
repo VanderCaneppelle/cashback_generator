@@ -29,6 +29,7 @@ export default function Home() {
     const [loadingMessage, setLoadingMessage] = useState("Estamos preparando seu link...");
     const [progress, setProgress] = useState(0);
     const [produtoGerado, setProdutoGerado] = useState(false);
+    const [percentualComissao, setPercentualComissao] = useState<number | null>(null);
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data }) => {
@@ -39,6 +40,22 @@ export default function Home() {
         });
         return () => { listener?.subscription.unsubscribe(); };
     }, []);
+
+    // Função para buscar o percentual de comissão da categoria
+    async function buscarPercentualComissao(categoria: string) {
+        if (!categoria) return;
+
+        try {
+            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+            const response = await fetch(`${backendUrl}/api/categorias`);
+            const categorias = await response.json();
+            const percentual = categorias[categoria] || 8; // Default 8% se não encontrar
+            setPercentualComissao(percentual);
+        } catch (error) {
+            console.error('Erro ao buscar percentual de comissão:', error);
+            setPercentualComissao(8); // Fallback para 8%
+        }
+    }
 
     async function handleAuth(e: React.FormEvent) {
         e.preventDefault();
@@ -131,6 +148,11 @@ export default function Home() {
                     valor_cashback: data.valor_cashback
                 });
                 setProdutoGerado(true);
+
+                // Busca o percentual de comissão da categoria
+                if (data.categoria) {
+                    await buscarPercentualComissao(data.categoria);
+                }
                 // Salva o link gerado no banco
                 const payloadSalvarLink = {
                     user_id: user.id,
@@ -281,11 +303,11 @@ export default function Home() {
         <div className="min-h-screen bg-gray-50">
             {/* Cabeçalho responsivo */}
             <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         {/* Logo/Nome do app */}
                         <div className="flex-shrink-0">
-                            <h1 className="text-xl font-bold text-orange-600">Cashback Generator</h1>
+                            <h1 className="text-lg sm:text-xl font-bold text-orange-600">Cashback Generator</h1>
                         </div>
 
                         {/* Desktop Header */}
@@ -306,9 +328,9 @@ export default function Home() {
                         </div>
 
                         {/* Mobile Header */}
-                        <div className="md:hidden flex items-center space-x-3">
+                        <div className="md:hidden flex items-center space-x-2">
                             <button
-                                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg px-3 py-2 text-sm transition-colors"
+                                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg px-2 py-2 text-xs transition-colors whitespace-nowrap"
                                 onClick={buscarMeusLinks}
                             >
                                 Meus links
@@ -318,7 +340,7 @@ export default function Home() {
                             <div className="relative">
                                 <button
                                     onClick={() => setShowAccountDropdown(!showAccountDropdown)}
-                                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg px-3 py-2 text-sm transition-colors"
+                                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg px-2 py-2 text-xs transition-colors whitespace-nowrap"
                                 >
                                     Minha conta
                                 </button>
@@ -424,6 +446,10 @@ export default function Home() {
                                     <span className="font-medium text-green-600">Cashback aproximado:</span>
                                     <span className="font-bold text-green-600">R$ {produto.valor_cashback?.toFixed(2) ?? '0.00'}</span>
                                 </div>
+                                <div className="flex justify-between">
+                                    <span className="font-medium">Seu cashback:</span>
+                                    <span className="font-bold text-blue-600">{percentualComissao ? (percentualComissao / 2).toFixed(1) : 4}%</span>
+                                </div>
                             </div>
                             {linkAfiliado && (
                                 <a
@@ -465,7 +491,7 @@ export default function Home() {
                                     <div className="text-2xl font-bold text-green-700">R$ {totaisPorStatus('recebido').toFixed(2)}</div>
                                 </div>
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <div className="text-blue-600 text-sm font-medium">Análise</div>
+                                    <div className="text-blue-600 text-sm font-medium">Em Análise</div>
                                     <div className="text-2xl font-bold text-blue-700">R$ {totaisPorStatus('analise').toFixed(2)}</div>
                                 </div>
                             </div>
@@ -508,7 +534,7 @@ export default function Home() {
                                                 rel="noopener noreferrer"
                                                 className="w-full bg-green-600 hover:bg-green-700 text-white text-center font-semibold rounded-lg py-2 px-4 text-sm transition-colors block"
                                             >
-                                                Comprar novamente
+                                                Link com Cashback
                                             </a>
                                         </div>
                                     ))}
@@ -523,7 +549,6 @@ export default function Home() {
                 Seu cashback é calculado automaticamente. Powered by Cashback Generator.
             </footer>
 
-            <Debug />
         </div>
     );
 } 

@@ -180,18 +180,25 @@ app.get('/screenshot/share10', (req, res) => {
 });
 
 app.post('/api/salvar-link', async (req, res) => {
-    const { user_id, codigo_produto, link_gerado, preco, status, nome_produto, categoria } = req.body;
+    const { user_id, codigo_produto, link_gerado, preco, status, nome_produto, categoria, valor_cashback } = req.body;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const valor_cashback = calcularCashback(preco, categoria);
+
+    // Se o valor_cashback não foi enviado, calcula aqui
+    let valor_cashback_final = valor_cashback;
+    if (!valor_cashback_final) {
+        valor_cashback_final = calcularCashback(preco, categoria);
+    }
+
     const { data, error } = await supabase.from('links_cashback').insert([
-        { user_id, codigo_produto, link_gerado, preco, valor_cashback, status, nome_produto, categoria }
+        { user_id, codigo_produto, link_gerado, preco, valor_cashback: valor_cashback_final, status, nome_produto, categoria }
     ]);
-    console.log(req.body);
+    console.log('Payload recebido:', req.body);
+    console.log('Valor cashback final:', valor_cashback_final);
     if (error) {
         console.log('Erro ao inserir no Supabase:', error);
         return res.status(500).json({ error: error.message });
     }
-    res.json({ success: true, data });
+    res.json({ success: true, data, valor_cashback: valor_cashback_final });
 });
 
 app.get('/api/links', async (req, res) => {
@@ -204,6 +211,11 @@ app.get('/api/links', async (req, res) => {
         .order('created_at', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
     res.json({ data });
+});
+
+// Rota para obter percentuais de comissão por categoria
+app.get('/api/categorias', (req, res) => {
+    res.json(categorias);
 });
 
 const PORT = process.env.PORT || 4000;

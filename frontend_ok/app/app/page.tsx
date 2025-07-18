@@ -7,7 +7,13 @@ import Debug from "../debug";
 
 export default function Home() {
     const [link, setLink] = useState("");
-    const [produto, setProduto] = useState<{ nome: string; preco: number; imagem?: string } | null>(null);
+    const [produto, setProduto] = useState<{
+        nome: string;
+        preco: number;
+        imagem?: string;
+        categoria?: string;
+        valor_cashback?: number;
+    } | null>(null);
     const [linkAfiliado, setLinkAfiliado] = useState<string | null>(null);
     const [erro, setErro] = useState("");
     const [loading, setLoading] = useState(false);
@@ -117,22 +123,41 @@ export default function Home() {
             const data = await resp.json();
             if (data.affiliateLink && data.nome && data.preco) {
                 setLinkAfiliado(data.affiliateLink);
-                setProduto({ nome: data.nome, preco: Number(data.preco), imagem: data.imagem });
+                setProduto({
+                    nome: data.nome,
+                    preco: Number(data.preco),
+                    imagem: data.imagem,
+                    categoria: data.categoria,
+                    valor_cashback: data.valor_cashback
+                });
                 setProdutoGerado(true);
                 // Salva o link gerado no banco
-                await fetch(`${backendUrl}/api/salvar-link`, {
+                const payloadSalvarLink = {
+                    user_id: user.id,
+                    codigo_produto: extrairCodigoProduto(link),
+                    link_gerado: data.affiliateLink,
+                    preco: Number(data.preco),
+                    status: 'pendente',
+                    nome_produto: data.nome,
+                    categoria: data.categoria || '',
+                    valor_cashback: data.valor_cashback
+                };
+                console.log('Payload salvar-link:', payloadSalvarLink);
+                const salvarResponse = await fetch(`${backendUrl}/api/salvar-link`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        user_id: user.id,
-                        codigo_produto: extrairCodigoProduto(link),
-                        link_gerado: data.affiliateLink,
-                        preco: Number(data.preco),
-                        valor_cashback: Number((Number(data.preco) * 0.1 * 0.5).toFixed(2)),
-                        status: 'pendente',
-                        nome_produto: data.nome
-                    })
+                    body: JSON.stringify(payloadSalvarLink)
                 });
+
+                const salvarData = await salvarResponse.json();
+
+                // Atualiza o produto com o valor_cashback calculado pelo backend
+                if (salvarData.valor_cashback) {
+                    setProduto(prev => ({
+                        ...prev!,
+                        valor_cashback: salvarData.valor_cashback
+                    }));
+                }
             } else {
                 setErro(data.error || "Erro ao gerar link de afiliado ou buscar dados do produto.");
                 setProduto(null);
@@ -186,9 +211,12 @@ export default function Home() {
 
     if (!user) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 p-4">
                 <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-6 border border-gray-100">
-                    <h1 className="text-2xl font-bold text-orange-600 text-center mb-2">Entrar ou cadastrar</h1>
+                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Login" className="w-20 h-20 mb-2 drop-shadow" />
+                    <h1 className="text-2xl font-bold text-orange-600 text-center mb-1">Entrar ou cadastrar</h1>
+                    <p className="text-gray-600 text-center text-base mb-2">Acesse sua conta para gerar links de cashback e economizar em todas as suas compras!</p>
+                    <span className="text-xs text-orange-400 font-semibold mb-2">É rápido, fácil e seguro 🚀</span>
                     <form onSubmit={handleAuth} className="w-full flex flex-col gap-4">
                         <input
                             type="email"
@@ -394,7 +422,7 @@ export default function Home() {
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="font-medium text-green-600">Cashback aproximado:</span>
-                                    <span className="font-bold text-green-600">R$ {cashback.toFixed(2)}</span>
+                                    <span className="font-bold text-green-600">R$ {produto.valor_cashback?.toFixed(2) ?? '0.00'}</span>
                                 </div>
                             </div>
                             {linkAfiliado && (

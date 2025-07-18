@@ -7,6 +7,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const path = require('path');
 const cookies = require('../ml_cookies.json');
+const { calcularCashback } = require('./utils/helpers');
 const {
     esperar,
     verificarPopupAberto,
@@ -15,6 +16,7 @@ const {
     FIELD_SELECTORS,
     COPY_BUTTON_SELECTORS
 } = require('./utils/scrapingUtils');
+const categorias = require('./categorias.json');
 
 const app = express();
 app.use(cors());
@@ -134,11 +136,23 @@ app.post('/api/affiliate-link', async (req, res) => {
         });
         console.log('Imagem do produto:', imagemProduto);
 
+        // Scraping da categoria geral do produto (breadcrumb)
+        const categoria = await page.evaluate(() => {
+            // Pega o primeiro <a> dentro do primeiro <li> do .andes-breadcrumb
+            const el = document.querySelector('.andes-breadcrumb__item:first-child > a.andes-breadcrumb__link');
+            return el ? el.innerText.trim() : null;
+        });
+        console.log('Categoria do produto:', categoria);
+
+        const valor_cashback = calcularCashback(precoProduto, categoria);
+        console.log('Valor Cashback calculado:', valor_cashback);
+
+
         // Fechar o navegador
         await page.close();
         await browser.close();
 
-        res.json({ affiliateLink, nome: nomeProduto, preco: precoProduto, imagem: imagemProduto });
+        res.json({ affiliateLink, nome: nomeProduto, preco: precoProduto, imagem: imagemProduto, categoria: categoria, valor_cashback: valor_cashback });
     } catch (err) {
         console.error('Erro ao gerar link de afiliado:', err);
         if (browser) await browser.close();
@@ -166,10 +180,11 @@ app.get('/screenshot/share10', (req, res) => {
 });
 
 app.post('/api/salvar-link', async (req, res) => {
-    const { user_id, codigo_produto, link_gerado, preco, valor_cashback, status, nome_produto } = req.body;
+    const { user_id, codigo_produto, link_gerado, preco, status, nome_produto, categoria } = req.body;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const valor_cashback = calcularCashback(preco, categoria);
     const { data, error } = await supabase.from('links_cashback').insert([
-        { user_id, codigo_produto, link_gerado, preco, valor_cashback, status, nome_produto }
+        { user_id, codigo_produto, link_gerado, preco, valor_cashback, status, nome_produto, categoria }
     ]);
     console.log(req.body);
     if (error) {

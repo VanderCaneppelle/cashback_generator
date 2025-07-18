@@ -16,11 +16,11 @@ export default function Landing() {
                     <div className="flex flex-col gap-3 text-left">
                         <div className="flex items-center gap-2">
                             <span className="text-green-500 text-2xl">✔️</span>
-                            <span className="text-gray-800 text-lg font-semibold">Cashback real e instantâneo</span>
+                            <span className="text-gray-800 text-lg font-semibold">Cashback real e sem pegadinhas</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-green-500 text-2xl">✔️</span>
-                            <span className="text-gray-800 text-lg font-semibold">Sem burocracia, sem pegadinhas</span>
+                            <span className="text-gray-800 text-lg font-semibold">Cadastro simples e fácil, Sem burocracia</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-green-500 text-2xl">✔️</span>

@@ -407,15 +407,16 @@ export default function Home() {
                                 disabled={loading}
                             />
                         </div>
-                        <div className="w-full max-w-2xl">
+                        <div className="w-full max-w-2xl flex justify-center">
                             <button
                                 type={produtoGerado ? "button" : "submit"}
                                 onClick={produtoGerado ? limparDados : undefined}
-                                className={`w-full font-semibold rounded-lg py-3 transition-colors shadow-md ${loading
-                                    ? "bg-orange-400 text-white cursor-not-allowed"
-                                    : produtoGerado
-                                        ? "bg-blue-500 hover:bg-blue-600 text-white"
-                                        : "bg-orange-500 hover:bg-orange-600 text-white"
+                                className={`w-full max-w-xs font-medium rounded-lg px-6 py-3 transition-colors shadow-sm text-white
+      ${loading
+                                        ? "bg-orange-300 cursor-not-allowed"
+                                        : produtoGerado
+                                            ? "bg-blue-400 hover:bg-blue-500"
+                                            : "bg-orange-400 hover:bg-orange-500"
                                     }`}
                                 disabled={loading}
                             >
@@ -476,15 +477,18 @@ export default function Home() {
                                 </div>
                             </div>
                             {linkAfiliado && (
-                                <a
-                                    href={linkAfiliado}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="mt-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition-colors"
-                                >
-                                    Comprar com cashback
-                                </a>
+                                <div className="w-full max-w-xs mx-auto mt-2">
+                                    <a
+                                        href={linkAfiliado}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full block text-center bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium shadow-md transition-colors"
+                                    >
+                                        Comprar com cashback
+                                    </a>
+                                </div>
                             )}
+
                         </div>
                     )}
                 </div>

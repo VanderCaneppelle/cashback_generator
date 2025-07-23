@@ -5,6 +5,7 @@ import { supabase } from "../../src/utils/supabaseClient";
 import { useEffect } from "react";
 import Debug from "../debug";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
 
 export default function Home() {
     const [link, setLink] = useState("");
@@ -32,6 +33,7 @@ export default function Home() {
     const [produtoGerado, setProdutoGerado] = useState(false);
     const [percentualComissao, setPercentualComissao] = useState<number | null>(null);
     const [signupSuccess, setSignupSuccess] = useState(false);
+    const linksSectionRef = useRef<HTMLDivElement>(null);
 
     const router = useRouter();
 
@@ -214,6 +216,18 @@ export default function Home() {
         const { data } = await resp.json();
         setMeusLinks(data || []);
         setLinksLoading(false);
+        // Scroll suave para a seção de links após mostrar, considerando o header
+        setTimeout(() => {
+            if (linksSectionRef.current) {
+                const header = document.querySelector('header');
+                const headerHeight = header ? header.offsetHeight : 0;
+                const sectionTop = linksSectionRef.current.getBoundingClientRect().top + window.pageYOffset;
+                window.scrollTo({
+                    top: sectionTop - headerHeight - 12, // 12px extra para espaçamento
+                    behavior: 'smooth'
+                });
+            }
+        }, 100);
     }
 
     function totaisPorStatus(status: string) {
@@ -493,12 +507,12 @@ export default function Home() {
                     )}
                 </div>
 
-                {/* Seção Meus Links */}
+                {/* Seção Resumo de Compras - sempre visível */}
                 {showLinks && (
-                    <div className="mb-8 max-w-4xl mx-auto">
+                    <div ref={linksSectionRef} className="mb-8 max-w-4xl mx-auto">
                         <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
                             <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-gray-900">Meus Links de Cashback</h2>
+                                <h2 className="text-2xl font-bold text-gray-900">Resumo de Compras</h2>
                                 <button
                                     onClick={() => setShowLinks(false)}
                                     className="text-gray-500 hover:text-gray-700"
@@ -508,21 +522,38 @@ export default function Home() {
                                     </svg>
                                 </button>
                             </div>
-                            {/* Totais */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                                    <div className="text-orange-600 text-sm font-medium">Pendente</div>
+                                    <div className="text-orange-600 text-sm font-medium flex items-center gap-1">
+                                        Pendente
+                                        <span title="São todos os valores de cashbacks dos links gerados. Independente se a compra foi finalizada ou não." className="cursor-pointer">ℹ️</span>
+                                    </div>
                                     <div className="text-2xl font-bold text-orange-700">R$ {totaisPorStatus('pendente').toFixed(2)}</div>
                                 </div>
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                    <div className="text-green-600 text-sm font-medium">Recebido</div>
-                                    <div className="text-2xl font-bold text-green-700">R$ {totaisPorStatus('recebido').toFixed(2)}</div>
-                                </div>
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <div className="text-blue-600 text-sm font-medium">Em Análise</div>
+                                    <div className="text-blue-600 text-sm font-medium flex items-center gap-1">
+                                        Em Análise
+                                        <span title="São todas as compras que foram reconhecidas pelo Mercado Livre mas ainda estão sob análise." className="cursor-pointer">ℹ️</span>
+                                    </div>
                                     <div className="text-2xl font-bold text-blue-700">R$ {totaisPorStatus('analise').toFixed(2)}</div>
                                 </div>
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                    <div className="text-green-600 text-sm font-medium flex items-center gap-1">
+                                        Aprovado
+                                        <span title="Valor que já foi aprovado e pronto para saque. (no banco está como aprovado)" className="cursor-pointer">ℹ️</span>
+                                    </div>
+                                    <div className="text-2xl font-bold text-green-700">R$ {totaisPorStatus('aprovado').toFixed(2)}</div>
+                                </div>
+                                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                    <div className="text-purple-600 text-sm font-medium flex items-center gap-1">
+                                        Recebido
+                                        <span title="São os valores que já foram depositados na conta do usuário. (no banco está como recebido)" className="cursor-pointer">ℹ️</span>
+                                    </div>
+                                    <div className="text-2xl font-bold text-purple-700">R$ {totaisPorStatus('recebido').toFixed(2)}</div>
+                                </div>
                             </div>
+                            <div className="my-6 border-t border-gray-200"></div>
+                            <h3 className="text-xl font-semibold text-gray-800 mb-4">Meus links gerados</h3>
                             {/* Lista de produtos */}
                             {linksLoading ? (
                                 <div className="text-center py-8">

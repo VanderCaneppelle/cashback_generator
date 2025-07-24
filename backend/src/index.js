@@ -213,6 +213,163 @@ app.get('/api/links', async (req, res) => {
     res.json({ data });
 });
 
+// Endpoint para buscar saldo aprovado do usuário
+app.get('/api/saldo-aprovado', async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: 'user_id obrigatório' });
+    try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data, error } = await supabase
+            .from('links_cashback')
+            .select('valor_cashback')
+            .eq('user_id', user_id)
+            .eq('status', 'aprovado');
+        if (error) throw error;
+        const aprovado = (data || []).reduce((acc, l) => acc + Number(l.valor_cashback), 0);
+        res.json({ aprovado });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Endpoint para solicitar saque
+app.post('/api/solicitar-saque', async (req, res) => {
+    const { user_id, valor, metodo, tipo_chave_pix, chave_pix, banco, agencia, conta, tipo_conta, titular_nome, titular_cpf } = req.body;
+    if (!user_id || !valor || !metodo) {
+        return res.status(400).json({ error: 'Campos obrigatórios: user_id, valor, metodo' });
+    }
+    try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data, error } = await supabase
+            .from('saques')
+            .insert([
+                {
+                    user_id,
+                    valor,
+                    metodo,
+                    tipo_chave_pix,
+                    chave_pix,
+                    banco,
+                    agencia,
+                    conta,
+                    tipo_conta,
+                    titular_nome,
+                    titular_cpf,
+                    status: 'pendente',
+                }
+            ])
+            .select(); // Garante retorno dos dados inseridos
+        if (error) throw error;
+        res.json({ success: true, saque: data && data[0] ? data[0] : null });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Endpoint para histórico de saques do usuário
+app.get('/api/historico-saques', async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: 'user_id obrigatório' });
+    try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data, error } = await supabase
+            .from('saques')
+            .select('*')
+            .eq('user_id', user_id)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        res.json({ saques: data });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Endpoint para resumo de cashback do usuário
+app.get('/api/resumo-cashback', async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: 'user_id obrigatório' });
+    try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        // Buscar totais por status em links_cashback
+        const { data: links, error: errorLinks } = await supabase
+            .from('links_cashback')
+            .select('valor_cashback, status')
+            .eq('user_id', user_id);
+        if (errorLinks) throw errorLinks;
+        const pendente = links.filter(l => l.status === 'pendente').reduce((acc, l) => acc + Number(l.valor_cashback), 0);
+        const analise = links.filter(l => l.status === 'analise').reduce((acc, l) => acc + Number(l.valor_cashback), 0);
+        const aprovado = links.filter(l => l.status === 'aprovado').reduce((acc, l) => acc + Number(l.valor_cashback), 0);
+        // Buscar saques
+        const { data: saques, error: errorSaques } = await supabase
+            .from('saques')
+            .select('valor, status')
+            .eq('user_id', user_id);
+        if (errorSaques) throw errorSaques;
+        const recebido = saques.filter(s => s.status === 'pago').reduce((acc, s) => acc + Number(s.valor), 0);
+        const pendente_saque = saques.filter(s => s.status === 'pendente').reduce((acc, s) => acc + Number(s.valor), 0);
+        // Valor aprovado real = aprovado - recebido - pendente_saque
+        const aprovado_real = aprovado - recebido - pendente_saque;
+        res.json({ pendente, analise, aprovado, aprovado_real, recebido, pendente_saque });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Endpoint para buscar dados financeiros do usuário
+app.get('/api/dados-financeiros', async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: 'user_id obrigatório' });
+    try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data, error } = await supabase
+            .from('dados_financeiros')
+            .select('*')
+            .eq('user_id', user_id)
+            .single();
+        if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows found
+        res.json({ dados: data });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Endpoint para criar/atualizar dados financeiros do usuário
+app.post('/api/dados-financeiros', async (req, res) => {
+    const { user_id, ...dados } = req.body;
+    if (!user_id) return res.status(400).json({ error: 'user_id obrigatório' });
+    try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        // Verifica se já existe
+        const { data: existente } = await supabase
+            .from('dados_financeiros')
+            .select('id')
+            .eq('user_id', user_id)
+            .single();
+        let result;
+        if (existente && existente.id) {
+            // Atualiza
+            const { data, error } = await supabase
+                .from('dados_financeiros')
+                .update(dados)
+                .eq('id', existente.id)
+                .select();
+            if (error) throw error;
+            result = data && data[0];
+        } else {
+            // Cria
+            const { data, error } = await supabase
+                .from('dados_financeiros')
+                .insert([{ user_id, ...dados }])
+                .select();
+            if (error) throw error;
+            result = data && data[0];
+        }
+        res.json({ success: true, dados: result });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Rota para obter percentuais de comissão por categoria
 app.get('/api/categorias', (req, res) => {
     res.json(categorias);

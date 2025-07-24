@@ -21,6 +21,7 @@ export default function Home() {
     const [loading, setLoading] = useState(false);
     const [authView, setAuthView] = useState<'login' | 'signup'>("login");
     const [user, setUser] = useState<any>(null);
+    const [userLoading, setUserLoading] = useState(true);
     const [authLoading, setAuthLoading] = useState(false);
     const [authError, setAuthError] = useState("");
     const [form, setForm] = useState({ email: "", password: "", nome: "", telefone: "" });
@@ -33,6 +34,7 @@ export default function Home() {
     const [produtoGerado, setProdutoGerado] = useState(false);
     const [percentualComissao, setPercentualComissao] = useState<number | null>(null);
     const [signupSuccess, setSignupSuccess] = useState(false);
+    const [resumo, setResumo] = useState({ pendente: 0, analise: 0, aprovado: 0, aprovado_real: 0, recebido: 0, pendente_saque: 0 });
     const linksSectionRef = useRef<HTMLDivElement>(null);
 
     const router = useRouter();
@@ -40,9 +42,21 @@ export default function Home() {
     useEffect(() => {
         supabase.auth.getUser().then(({ data }) => {
             setUser(data.user);
+            setUserLoading(false);
+            if (data.user) {
+                fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000'}/api/resumo-cashback?user_id=${data.user.id}`)
+                    .then(res => res.json())
+                    .then(res => setResumo(res));
+            }
         });
         const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user ?? null);
+            setUserLoading(false);
+            if (session?.user) {
+                fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000'}/api/resumo-cashback?user_id=${session.user.id}`)
+                    .then(res => res.json())
+                    .then(res => setResumo(res));
+            }
         });
         return () => { listener?.subscription.unsubscribe(); };
     }, []);
@@ -251,6 +265,9 @@ export default function Home() {
     const comissao = produto ? produto.preco * 0.1 : 0;
     const cashback = comissao * 0.5;
 
+    if (userLoading) {
+        return <div className="min-h-screen flex items-center justify-center text-gray-500">Carregando...</div>;
+    }
     if (!user) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 p-4 relative">
@@ -388,6 +405,12 @@ export default function Home() {
                                         <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-100">
                                             {user.email}
                                         </div>
+                                        <button
+                                            onClick={() => router.push('/app/dados-financeiros')}
+                                            className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+                                        >
+                                            Meus dados financeiros
+                                        </button>
                                         <button
                                             onClick={handleLogout}
                                             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -528,28 +551,38 @@ export default function Home() {
                                         Pendente
                                         <span title="São todos os valores de cashbacks dos links gerados. Independente se a compra foi finalizada ou não." className="cursor-pointer">ℹ️</span>
                                     </div>
-                                    <div className="text-2xl font-bold text-orange-700">R$ {totaisPorStatus('pendente').toFixed(2)}</div>
+                                    <div className="text-2xl font-bold text-orange-700">R$ {resumo.pendente.toFixed(2)}</div>
                                 </div>
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                     <div className="text-blue-600 text-sm font-medium flex items-center gap-1">
                                         Em Análise
                                         <span title="São todas as compras que foram reconhecidas pelo Mercado Livre mas ainda estão sob análise." className="cursor-pointer">ℹ️</span>
                                     </div>
-                                    <div className="text-2xl font-bold text-blue-700">R$ {totaisPorStatus('analise').toFixed(2)}</div>
+                                    <div className="text-2xl font-bold text-blue-700">R$ {resumo.analise.toFixed(2)}</div>
                                 </div>
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                    <div className="text-green-600 text-sm font-medium flex items-center gap-1">
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex flex-col justify-between h-full">
+                                    <div className="text-green-600 text-sm font-medium flex items-center gap-1 mb-2">
                                         Aprovado
                                         <span title="Valor que já foi aprovado e pronto para saque. (no banco está como aprovado)" className="cursor-pointer">ℹ️</span>
                                     </div>
-                                    <div className="text-2xl font-bold text-green-700">R$ {totaisPorStatus('aprovado').toFixed(2)}</div>
+                                    <div className="text-2xl font-bold text-green-700 mb-2">R$ {resumo.aprovado_real.toFixed(2)}</div>
+                                    {resumo.pendente_saque > 0 && (
+                                        <div className="text-xs text-gray-500 mb-2">R$ {resumo.pendente_saque.toFixed(2)} em solicitação de saque</div>
+                                    )}
+                                    <button
+                                        onClick={() => router.push('/app/saque')}
+                                        className={`w-full py-2 rounded-lg text-white font-semibold transition-colors mt-auto ${resumo.aprovado_real > 0 ? 'bg-green-600 hover:bg-green-700 cursor-pointer' : 'bg-green-300 cursor-not-allowed'}`}
+                                        disabled={resumo.aprovado_real <= 0}
+                                    >
+                                        Solicitar Saque
+                                    </button>
                                 </div>
                                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                                     <div className="text-purple-600 text-sm font-medium flex items-center gap-1">
                                         Recebido
-                                        <span title="São os valores que já foram depositados na conta do usuário. (no banco está como recebido)" className="cursor-pointer">ℹ️</span>
+                                        <span title="São os valores que já foram depositados na conta do usuário. (no banco está como pago na tabela de saques)" className="cursor-pointer">ℹ️</span>
                                     </div>
-                                    <div className="text-2xl font-bold text-purple-700">R$ {totaisPorStatus('recebido').toFixed(2)}</div>
+                                    <div className="text-2xl font-bold text-purple-700">R$ {resumo.recebido.toFixed(2)}</div>
                                 </div>
                             </div>
                             <div className="my-6 border-t border-gray-200"></div>
